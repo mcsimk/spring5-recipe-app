@@ -78,13 +78,11 @@ public class IngredientServiceImpl implements IngredientService {
             log.error("Ingredient not found for id: " + command.getId() + " in recipe with id:" + command.getRecipeId());
             return;
         }
-
-        recipe.getIngredients().remove(ingredientOptional.get());
+        Ingredient ingredient = ingredientOptional.get();
+        ingredient.setRecipe(null);
+        recipe.getIngredients().remove(ingredient);
         Recipe savedRecipe = recipeRepository.save(recipe);
 
-        // temp
-        Optional<Recipe> recipeFromDb = recipeRepository.findById(recipe.getId());
-        //
 
         return;
     }
