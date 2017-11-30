@@ -1,6 +1,8 @@
 package guru.springframework.services;
 
+import com.sun.org.apache.regexp.internal.RE;
 import guru.springframework.commands.IngredientCommand;
+import guru.springframework.commands.RecipeCommand;
 import guru.springframework.converters.IngredientCommandToIngredient;
 import guru.springframework.converters.IngredientToIngredientCommand;
 import guru.springframework.domain.Ingredient;
@@ -60,6 +62,35 @@ public class IngredientServiceImpl implements IngredientService {
 
     @Override
     @Transactional
+    public void deleteIngredientCommand(IngredientCommand command) {
+        Optional<Recipe> recipeOptional = recipeRepository.findById(command.getRecipeId());
+        if (!recipeOptional.isPresent()) {
+            log.error("Recipe not found for id: " + command.getRecipeId());
+            return;
+        }
+        Recipe recipe = recipeOptional.get();
+
+        Optional<Ingredient> ingredientOptional =
+            recipe.getIngredients().stream()
+                    .filter(ingredient -> ingredient.getId().equals(command.getId()))
+                    .findFirst();
+        if (!ingredientOptional.isPresent()) {
+            log.error("Ingredient not found for id: " + command.getId() + " in recipe with id:" + command.getRecipeId());
+            return;
+        }
+
+        recipe.getIngredients().remove(ingredientOptional.get());
+        Recipe savedRecipe = recipeRepository.save(recipe);
+
+        // temp
+        Optional<Recipe> recipeFromDb = recipeRepository.findById(recipe.getId());
+        //
+
+        return;
+    }
+
+    @Override
+    @Transactional
     public IngredientCommand saveIngredientCommand(IngredientCommand command) {
         Optional<Recipe> recipeOptional = recipeRepository.findById(command.getRecipeId());
 
@@ -93,23 +124,34 @@ public class IngredientServiceImpl implements IngredientService {
 
             Recipe savedRecipe = recipeRepository.save(recipe);
 
-            Optional<Ingredient> savedIngredientOptional = savedRecipe.getIngredients().stream()
-                    .filter(recipeIngredients -> recipeIngredients.getId().equals(command.getId()))
-                    .findFirst();
+            Optional<Ingredient> savedIngredientOptional;
 
-            //check by description
-            if(!savedIngredientOptional.isPresent()){
-                //not totally safe... But best guess
+            if (command.getId() != null) {
                 savedIngredientOptional = savedRecipe.getIngredients().stream()
-                        .filter(recipeIngredients -> recipeIngredients.getDescription().equals(command.getDescription()))
-                        .filter(recipeIngredients -> recipeIngredients.getAmount().equals(command.getAmount()))
-                        .filter(recipeIngredients -> recipeIngredients.getUom().getId().equals(command.getUom().getId()))
+                        .filter(recipeIngredients -> recipeIngredients.getId().equals(command.getId()))
                         .findFirst();
+            } else {
+                savedIngredientOptional =
+                        savedRecipe.getIngredients().stream()
+                                .filter(ingredient -> !recipe.getIngredients().contains(ingredient))
+                                .findFirst();
             }
+
+//
+//            //check by description
+//            if(!savedIngredientOptional.isPresent()){
+//                //not totally safe... But best guess
+//                savedIngredientOptional = savedRecipe.getIngredients().stream()
+//                        .filter(recipeIngredients -> recipeIngredients.getDescription().equals(command.getDescription()))
+//                        .filter(recipeIngredients -> recipeIngredients.getAmount().equals(command.getAmount()))
+//                        .filter(recipeIngredients -> recipeIngredients.getUom().getId().equals(command.getUom().getId()))
+//                        .findFirst();
+//            }
 
             //to do check for fail
             return ingredientToIngredientCommand.convert(savedIngredientOptional.get());
         }
+
 
     }
 }

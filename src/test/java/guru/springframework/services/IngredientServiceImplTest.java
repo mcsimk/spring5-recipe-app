@@ -11,6 +11,7 @@ import guru.springframework.repositories.RecipeRepository;
 import guru.springframework.repositories.UnitOfMeasureRepository;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -106,6 +107,70 @@ public class IngredientServiceImplTest {
         assertEquals(Long.valueOf(3L), savedCommand.getId());
         verify(recipeRepository, times(1)).findById(anyLong());
         verify(recipeRepository, times(1)).save(any(Recipe.class));
+
+    }
+
+    @Test
+    public void testNewSaveIngredientCommand() throws Exception {
+        //given
+
+        // ingredient for adding
+        IngredientCommand command = new IngredientCommand();
+        command.setDescription("something tasty");
+        command.setRecipeId(2L);
+        // recipe with 1 ingredient
+        Ingredient ingredient = new Ingredient();
+        ingredient.setId(1L);
+        Recipe recipe = new Recipe();
+        recipe.addIngredient(ingredient);
+        Optional<Recipe> recipeOptional = Optional.of(recipe);
+        // saved recipe with 2 ingredients
+        Recipe savedRecipe = new Recipe();
+        savedRecipe.addIngredient(ingredient);
+        Ingredient savedIngredient = ingredientCommandToIngredient.convert(command);
+        savedIngredient.setId(2L);
+        savedRecipe.addIngredient(savedIngredient);
+
+
+        when(recipeRepository.findById(anyLong())).thenReturn(recipeOptional);
+        when(recipeRepository.save(any())).thenReturn(savedRecipe);
+
+        //when
+        IngredientCommand savedCommand = ingredientService.saveIngredientCommand(command);
+
+        //then
+        assertEquals(2L, savedCommand.getId().longValue());
+
+    }
+
+    @Test
+    public void testDeleteIngredientCommand() throws Exception {
+        //given
+        IngredientCommand ingredientCommand = new IngredientCommand();
+        ingredientCommand.setRecipeId(1L);
+        ingredientCommand.setId(2L);
+
+        Recipe recipe = new Recipe();
+        recipe.setId(1L);
+        Ingredient i1 = new Ingredient();
+        i1.setId(1L);
+        recipe.addIngredient(i1);
+        Ingredient i2 = new Ingredient();
+        i2.setId(2L);
+        recipe.addIngredient(i2);
+
+        when(recipeRepository.findById(anyLong())).thenReturn(Optional.of(recipe));
+        when(recipeRepository.save(any())).thenReturn(recipe);
+
+        //when
+        ingredientService.deleteIngredientCommand(ingredientCommand);
+
+        //then
+        ArgumentCaptor<Recipe> argumentCaptor = ArgumentCaptor.forClass(Recipe.class);
+        verify(recipeRepository).save(argumentCaptor.capture());
+        assertEquals(1, argumentCaptor.getValue().getIngredients().size());
+
+
 
     }
 }
